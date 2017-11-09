@@ -61,11 +61,9 @@ angular.module('bcPhoneNumber', ['bcPhoneNumberTemplates', 'ui.bootstrap'])
         scope.number = scope.ngModel = bcCountries.changeDialCode(scope.number, country.dialCode);
       };
 
-      scope.resetCountry = function() {
-        var defaultCountryCode = scope.defaultCountryCode;
-
-        if (defaultCountryCode) {
-          var defaultCountry = bcCountries.getCountryByIso2Code(defaultCountryCode);
+      var resetCountry = function() {
+        if (scope.defaultCountryCode) {
+          var defaultCountry = bcCountries.getCountryByIso2Code(scope.defaultCountryCode);
           var number = bcCountries.changeDialCode(scope.number, defaultCountry.dialCode);
 
           scope.selectedCountry = defaultCountry;
@@ -73,8 +71,7 @@ angular.module('bcPhoneNumber', ['bcPhoneNumberTemplates', 'ui.bootstrap'])
           scope.number = number;
         }
       };
-
-      scope.resetCountry();
+      resetCountry();
 
       scope.$watch('ngModel', function(newValue) {
         scope.number = newValue;
