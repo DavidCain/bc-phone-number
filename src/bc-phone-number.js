@@ -37,71 +37,78 @@ angular.module('bcPhoneNumber', ['bcPhoneNumberTemplates', 'ui.bootstrap'])
       defaultCountryCode: '@defaultCountry',
       selectedCountry: '=?',
       isValid: '=?',
-      ngModel: '=',
-      ngChange: '&',
       ngDisabled: '=',
       name: '@',
       label: '@'
     },
-    link: function(scope, element, attrs, ctrl) {
+    link: function(scope, element, attrs, ngModelCtrl) {
       scope.selectedCountry = bcCountries.getCountryByIso2Code(scope.defaultCountryCode || 'us');
       scope.allCountries = bcCountries.getAllCountries();
-      scope.number = scope.ngModel;
-      scope.changed = function() {
-        scope.ngChange();
-      };
 
       if (scope.preferredCountriesCodes) {
         var preferredCodes = scope.preferredCountriesCodes.split(' ');
         scope.preferredCountries = getPreferredCountries(preferredCodes);
       }
 
-      scope.selectCountry = function(country) {
+      scope.selectCountry = function(country, doNotSetView) {
         scope.selectedCountry = country;
-        scope.number = scope.ngModel = bcCountries.changeDialCode(scope.number, country.dialCode);
+        scope.number = bcCountries.changeDialCode(scope.number, country.dialCode);
+        if (!doNotSetView) {
+          ngModelCtrl.$setViewValue(scope.number);
+        }
       };
 
       var resetCountry = function() {
         if (scope.defaultCountryCode) {
           var defaultCountry = bcCountries.getCountryByIso2Code(scope.defaultCountryCode);
-          var number = bcCountries.changeDialCode(scope.number, defaultCountry.dialCode);
-
-          scope.selectedCountry = defaultCountry;
-          scope.ngModel = number;
-          scope.number = number;
+          // Do not set the view value right away, since that might override forthcoming ngModel
+          // (wait until the user starts interacting with the input to overwrite)
+          scope.selectCountry(defaultCountry, true);
         }
       };
       resetCountry();
 
-      scope.$watch('ngModel', function(newValue) {
-        scope.number = newValue;
-      });
-
-      scope.$watch('number', function(newValue) {
-        scope.isValid = bcCountries.isValidNumber(newValue);
-        ctrl.$setValidity('phoneNumber', scope.isValid);
-      });
-
-      scope.$watch('number', function(newValue) {
-        if (newValue === '') { scope.ngModel = ''; }
-        else if (newValue) {
-          var digits = bcCountries.getDigits(newValue);
-          var countryCode = bcCountries.getIso2CodeByDigits(digits);
-
-          if (countryCode) {
-            var dialCode = bcCountries.getDialCodeByDigits(digits);
-            var number = bcCountries.formatNumber(newValue);
-
-            if (dialCode !== scope.selectedCountry.dialCode) {
-              scope.selectedCountry = bcCountries.getCountryByIso2Code(countryCode);
-            }
-
-            scope.ngModel = number;
-            scope.number = number;
-          }
-          else { scope.ngModel = newValue; }
+      var isValidNumber = function(number) {
+        if (!number) { // Blank numbers are valid! (unless required directive present)
+          return true;
         }
-      });
+        return bcCountries.isValidNumber(number);
+      };
+
+      var formatNumber = function(value) {
+        return value && bcCountries.formatNumber(value);
+      };
+
+      scope.changeNumber = function(newNumber) {
+        scope.number = formatNumber(newNumber);
+        ngModelCtrl.$setViewValue(scope.number);
+        checkForCountryUpdate();
+      };
+
+      // Translate any external ngModel changes to internal scope.number
+      ngModelCtrl.$render = function updateView() {
+        scope.number = formatNumber(ngModelCtrl.$viewValue || '');
+        checkForCountryUpdate();
+      };
+
+      ngModelCtrl.$validators.validPhoneNumber = function(modelValue, viewValue) {
+        scope.isValid = isValidNumber(modelValue || viewValue);
+        return scope.isValid;
+      };
+
+      /* Any time the number changes country code, update the selector */
+      var checkForCountryUpdate = function() {
+        var digits = bcCountries.getDigits(scope.number);
+        var countryCode = bcCountries.getIso2CodeByDigits(digits);
+        if (!countryCode) {
+          return;
+        }
+
+        var dialCode = bcCountries.getDialCodeByDigits(digits);
+        if (dialCode !== scope.selectedCountry.dialCode) {
+          scope.selectedCountry = bcCountries.getCountryByIso2Code(countryCode);
+        }
+      };
     }
   };
 });
