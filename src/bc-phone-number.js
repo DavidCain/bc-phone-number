@@ -61,10 +61,6 @@ angular.module('bcPhoneNumber', ['bcPhoneNumberTemplates', 'ui.bootstrap'])
         scope.number = scope.ngModel = bcCountries.changeDialCode(scope.number, country.dialCode);
       };
 
-      scope.isCountrySelected = function(country) {
-        return country.iso2Code == scope.selectedCountry.iso2Code;
-      };
-
       scope.resetCountry = function() {
         var defaultCountryCode = scope.defaultCountryCode;
 
